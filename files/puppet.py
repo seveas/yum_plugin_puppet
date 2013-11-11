@@ -52,7 +52,7 @@ def config_hook(conduit):
             continue
         if not f['title'].startswith('/etc/yum') and not f['title'].startswith('/usr/lib/yum-plugins'):
             continue
-        fn, content = f['title'], f['content']
+        fn, content = f['title'], f['content'].decode("string_escape")
         content = content.replace('\\n', '\n')
         replace = False
         if not os.path.exists(fn):

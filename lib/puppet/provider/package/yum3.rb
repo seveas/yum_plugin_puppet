@@ -83,29 +83,22 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
                     packages.delete(name)
                     next
                 end
-                deps = package.builddepends
-                deps.clone.each do |rel|
-                    # If we're depended on: good!
-                    if rel.source.name == name
-                        deps.delete(rel)
-                        next
+                deps = package.catalog.relationship_graph.dependencies(package)
+                deps.clone.each do |dep|
+                    # Ignore whits (Classes, Stages and other internal noop resources)
+                    if dep.type.to_s == 'whit' then
+                         deps.delete(dep)
+                         next
                     end
                     # If the dependency is a package we will also install: good!
-                    if rel.source.type.to_s == 'package' and depsolved.include?(rel.source.name) then
-                        deps.delete(rel)
+                    if dep.type.to_s == 'package' and depsolved.include?(dep.name) then
+                        deps.delete(dep)
                         next
                     end
-                    # Booking-specific: Yum::Repositories is a wrapper for repository configs
-                    if rel.source.type.to_s == 'component' then
-                        if rel.source.ref =~ /^Yum::Repositories/ then
-                            deps.delete(rel)
-                            next
-                        end
-                    end
                     # If the dependency is a file in /etc/yum or /usr/lib/yum/plugins: our plugin will do them
-                    if rel.source.type.to_s == 'file' then
-                        if rel.source[:path] =~ /^(\/etc\/yum|\/usr\/lib\/yum-plugins)/ then
-                            deps.delete(rel)
+                    if dep.type.to_s == 'file' then
+                        if dep[:path] =~ /^(\/etc\/yum|\/usr\/lib\/yum-plugins)/ then
+                            deps.delete(dep)
                             next
                         end
                     end
@@ -118,7 +111,11 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
             end
         end
         if preinstall.count == 0 then
-            notice("Prefetch done...")
+            if packages.keys.count != 0 then
+                notice("Prefetch done (unable to process %d packages)..." % packages.keys.count)
+            else
+                notice("Prefetch done...")
+            end
             return
         end
         notice("Processing %d/%d packages in one transaction" % [preinstall.count, preinstall.count + packages.keys.count])

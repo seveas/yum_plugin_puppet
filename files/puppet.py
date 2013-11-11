@@ -137,14 +137,31 @@ class InstallRemoveCommand(YumCommand):
         self.doneCommand(base, str(extcmds))
         remove = [x[1:] for x in extcmds if x.startswith('~')]
         install = [x for x in extcmds if not x.startswith('~')]
+        retmsgs = []
         try:
-            base.erasePkgs(remove)
+            ret, msgs = base.erasePkgs(remove)
+            if ret != 0:
+                retmsgs += msgs
         except yum.Errors.YumBaseError, e:
             return 1, [str(e)]
         try:
-            return base.installPkgs(install)
+            for pkg in install:
+                ret, msgs = base.installPkgs([pkg])
+                if ret == 0:
+                    # Install didn't work, try downgrade if it looks like
+                    # version and release are specified
+                    if re.search(r'-\d.*-\d', pkg):
+                        ret, msgs = base.downgradePkgs([pkg])
+                        if ret != 0:
+                            retmsgs += msgs
+                else:
+                    retmsgs += msgs
         except yum.Errors.YumBaseError, e:
             return 1, [str(e)]
+        if retmsgs:
+            return 2, retmsgs
+        else:
+            return 0, ["No Packages marked for install/removal/downgrade"]
 
     def needTs(self, base, basecmd, extcmds):
         return True

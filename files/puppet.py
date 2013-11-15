@@ -100,6 +100,8 @@ def exclude_hook(conduit):
     opts, args = conduit.getCmdLine()
     if args[0] not in ('remove', 'purge', 'clean'):
         towarn = dict([(x, 'installed') for x in args[1:]])
+    else:
+        towarn = []
     allrepos = conduit.getRepos().listEnabled()
     count = 0
     for repo in allrepos:

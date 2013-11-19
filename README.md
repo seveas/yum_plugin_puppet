@@ -14,7 +14,59 @@ First copy this directory over to your `modules` directory. Then add this to
 
     Package{ provider => 'yum3' }
 
-That's it!
+You also need to make sure the module is actually used, or else the yum plugin
+will not be installed. A last prerequisite is that the yum package should be
+managed with puppet, so the provider can get a grip on the catalog.
+
+As an example, here is how I configure it:
+ * Every server gets a role-based class assigned in puppet.
+ * Each of these classes include the lass `base::common` as baseline configuration. 
+ * `base::common` includes the yum and yum-plugin-puppet classes
+ * The yum class manages yum: `package{"yum": ensure => latest}`
+
+This looks like the following:
+
+manifests/site.pp
+
+    ...
+    include "nodes.pp"
+    ...
+
+manifests/nodes.pp
+
+    ...
+    node some-server.example.com {
+        ...
+        include s_example_service
+    }
+    ...
+
+modules/s\_example\_service/manifests/init.pp
+
+    class s_example_service {
+        ...
+        include base::common
+    }
+
+modules/base/manifests/init.pp
+
+    class base::common {
+        ...
+        include yum
+        include yum-plugin-puppet
+        ...
+    }
+
+modules/yum/manifests/init.pp
+
+    class yum {
+        ...
+        package{"yum":
+            ensure => latest;
+        }
+        ...
+    }
+
 
 What does it change?
 --------------------

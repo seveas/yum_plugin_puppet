@@ -101,7 +101,8 @@ The yum plugin changes a few things:
   install-remove ~foo bar` will remove `foo` and add `bar`.
 * It reads puppet's catalog and uses that to make decisions about which
   packages to ignore (wrong versions and packages configured with `ensure =>
-  absent`). This also helps with the version flapping problem described above.
+  absent` or `ensure => purged`). This also helps with the version flapping
+  problem described above.
 * Based on the puppet catalog it will refuse to remove certain packages, again
   to help with rpm dependencies not matching puppet dependencies.
 * When installing packages that will overwrite puppet-managed files, it will

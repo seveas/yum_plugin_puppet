@@ -61,7 +61,7 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
                 depsolved.push(pkg.name)
                 depsolved.push(pkg2[:name])
                 packages.delete(pkg2.title)
-            elsif ens == 'absent' then
+            elsif ['absent', 'purged'].include?(ens) then
                 installed.push(pkg2.title)
                 depsolved.push(pkg2.title)
                 depsolved.push(pkg.name)
@@ -78,7 +78,7 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
                     packages.delete(name)
                     next
                 end
-                if package[:ensure].to_s == 'absent' and not installed.include?(package.name) then
+                if ['absent', 'purged'].include?(package[:ensure].to_s) and not installed.include?(package.name) then
                     depsolved.push(package.name)
                     packages.delete(name)
                     next
@@ -123,7 +123,7 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
         pkgs = []
         preinstall.each do |pkg|
             ens = pkg[:ensure].to_s
-            if ens == 'absent' then
+            if ['absent', 'purged'].include?(ens) then
                 pkgs.push('~' + pkg[:name])
             elsif ['installed', 'latest', 'present'].include?(ens) then
                 pkgs.push(pkg[:name])

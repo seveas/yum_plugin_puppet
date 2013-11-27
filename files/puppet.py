@@ -19,7 +19,8 @@ puppet_files = []
 puppet_packages = {}
 puppet_yaml = ''
 ABSENT = -1
-OTHERVER = -2
+PURGED = -2
+OTHERVER = -3
 
 def config_hook(conduit):
     global puppet_files
@@ -90,6 +91,8 @@ def nvra_match(po, pkgs):
         if check in pkgs:
             if pkgs[check] == 'absent':
                 return ABSENT, pkgs[check]
+            if pkgs[check] == 'purged':
+                return PURGED, pkgs[check]
             if pkgs[check] not in (v, vr, vra, 'installed', 'abent', 'latest', 'present'):
                 return OTHERVER, pkgs[check]
             return True, pkgs[check]
@@ -110,6 +113,10 @@ def exclude_hook(conduit):
             res, ver = nvra_match(po, puppet_packages)
             if res == ABSENT:
                 conduit.info(loglevel," --> %s from %s excluded (puppet ensure => absent)" % (po, po.repoid))
+                conduit.delPackage(po)
+                count += 1
+            elif res == PURGED:
+                conduit.info(loglevel," --> %s from %s excluded (puppet ensure => purged)" % (po, po.repoid))
                 conduit.delPackage(po)
                 count += 1
             elif res == OTHERVER:

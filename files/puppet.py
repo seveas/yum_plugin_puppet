@@ -35,17 +35,17 @@ def config_hook(conduit):
     # Oh, and it can't parse it completely anyway. But it does take over a
     # minute to realize that. Parsing with a regex takes 0.01 seconds
     puppet_yaml = open(puppet_catalog).read()
-    packages_re = r'(?<=\n)    - &id[^\n]*Relationship.*?type: Package.*?(?=\n    [^ ])'
+    resource_re = r'(?<=\n)    - &id[^\n]*Relationship.*?(?=\n    [^ ])'
 
-    packages = [dict(re.findall('(title|ensure):\s*"?(.*?)"?\n', pkg)) for pkg in 
-                re.findall(packages_re, puppet_yaml, flags=re.DOTALL)]
+    packages = [dict(re.findall('(title|ensure):\s*"?(.*?)"?(?:\n|$)', pkg)) for pkg in
+                re.findall(resource_re, puppet_yaml, flags=re.DOTALL) if 'type: Package' in pkg]
 
     puppet_packages = dict([(pkg['title'], pkg.get('ensure', 'installed')) for pkg in packages])
 
     conduit.info(2, "Looking at puppet catalog for repo info")
-    file_re = r'(?<=\n)    - &id[^\n]*Relationship.*?type: File.*?(?=\n    [^ ])'
-    files = [dict(re.findall('(title|(?<=ruby/sym )target|content):\s*"?(.*?)"?\n', pkg)) for pkg in 
-             re.findall(file_re, puppet_yaml, flags=re.DOTALL)]
+    files = [dict(re.findall('(title|(?<=ruby/sym )target|content):\s*"?(.*?)"?(?:\n|$)', pkg)) for pkg in
+             re.findall(resource_re, puppet_yaml, flags=re.DOTALL) if 'type: File' in pkg]
+
     for f in files:
         if 'target' in f:
             f['title'] = f['target']
@@ -135,7 +135,7 @@ class InstallRemoveCommand(YumCommand):
 
     def getSummary(self):
         return "Install or remove packages on your system"
-    
+
     def doCheck(self, base, basecmd, extcmds):
         checkRootUID(base)
         checkGPGKey(base)

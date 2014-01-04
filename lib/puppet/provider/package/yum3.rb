@@ -24,6 +24,10 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
 
     def self.prefetch(packages)
         super
+        if Puppet[:tags].length != 0 then
+            notice("Skipping prefetch, --tags used")
+            return
+        end
         if Puppet[:noop] then
             return
         end

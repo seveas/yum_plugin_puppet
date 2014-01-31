@@ -14,7 +14,7 @@ from yumcommands import YumCommand, checkRootUID, checkGPGKey, checkPackageArg
 requires_api_version = '2.4'
 plugin_type = (TYPE_CORE, TYPE_INTERACTIVE)
 
-puppet_catalog = '/var/lib/puppet/client_yaml/catalog/%s.yaml' % socket.gethostname()
+puppet_catalog = '/var/lib/puppet/client_yaml/catalog/%s.yaml' % socket.getfqdn()
 puppet_files = []
 puppet_packages = {}
 puppet_yaml = ''

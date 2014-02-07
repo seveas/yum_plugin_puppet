@@ -32,6 +32,8 @@ def config_hook(conduit):
     global puppet_yaml
     puppet_catalog = conduit.confString('main', 'puppet_catalog', default=puppet_catalog)
     if not os.path.exists(puppet_catalog):
+        conduit.info(2, "Catalog file %s does not exist" % puppet_catalog)
+        conduit.registerCommand(FakeInstallRemoveCommand())
         return
 
     # PyYAML is far, far too slow to load the manifest. We'll make do with a regex.
@@ -180,6 +182,25 @@ class InstallRemoveCommand(YumCommand):
 
     def needTsRemove(self, base, basecmd, extcmds):
         return True
+
+class FakeInstallRemoveCommand(YumCommand):
+    def getNames(self):
+        return ['install-remove']
+
+    def getUsage(self):
+        return "[~]PACKAGE..."
+
+    def getSummary(self):
+        return "Install or remove packages on your system"
+
+    def doCommand(self, base, basecmd, extcmds):
+        return 1, ["Unable to use install-remove, puppet catalog not found"]
+
+    def needTs(self, base, basecmd, extcmds):
+        return False
+
+    def needTsRemove(self, base, basecmd, extcmds):
+        return False
 
 def postresolve_hook(conduit):
     global puppet_packages

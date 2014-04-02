@@ -9,6 +9,11 @@ import rpm
 import yum
 import os
 import re
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
 from yumcommands import YumCommand, checkRootUID, checkGPGKey, checkPackageArg
 
 requires_api_version = '2.4'
@@ -18,9 +23,11 @@ me = socket.gethostname()
 if '.' not in me:
     me = socket.getfqdn()
 puppet_catalog = '/var/lib/puppet/client_yaml/catalog/%s.yaml' % me
+if not os.path.exists(puppet_catalog):
+    # Try the json-serialized version
+    puppet_catalog = '/var/lib/puppet/client_data/catalog/%s.json' % me
 puppet_files = []
 puppet_packages = {}
-puppet_yaml = ''
 ABSENT = -1
 PURGED = -2
 OTHERVER = -3
@@ -29,27 +36,39 @@ def config_hook(conduit):
     global puppet_files
     global puppet_catalog
     global puppet_packages
-    global puppet_yaml
     puppet_catalog = conduit.confString('main', 'puppet_catalog', default=puppet_catalog)
     if not os.path.exists(puppet_catalog):
         conduit.info(2, "Catalog file %s does not exist" % puppet_catalog)
         conduit.registerCommand(FakeInstallRemoveCommand())
         return
 
-    # PyYAML is far, far too slow to load the manifest. We'll make do with a regex.
-    # Oh, and it can't parse it completely anyway. But it does take over a
-    # minute to realize that. Parsing with a regex takes 0.01 seconds
-    puppet_yaml = open(puppet_catalog).read()
-    resource_re = r'(?<=\n)    - &id[^\n]*Relationship.*?(?=\n    [^ ])'
-
-    packages = [dict(re.findall('(title|ensure):\s*"?(.*?)"?(?:\n|$)', pkg)) for pkg in
-                re.findall(resource_re, puppet_yaml, flags=re.DOTALL) if 'type: Package' in pkg]
-
-    puppet_packages = dict([(pkg['title'], pkg.get('ensure', 'installed')) for pkg in packages])
-
     conduit.info(2, "Looking at puppet catalog for repo info")
-    files = [dict(re.findall('(title|(?<=ruby/sym )target|content):\s*"?(.*?)"?(?:\n|$)', pkg)) for pkg in
-             re.findall(resource_re, puppet_yaml, flags=re.DOTALL) if 'type: File' in pkg]
+    if puppet_catalog.endswith('.yaml'):
+        # PyYAML is far, far too slow to load the manifest. We'll make do with a regex.
+        # Oh, and it can't parse it completely anyway. But it does take over a
+        # minute to realize that. Parsing with a regex takes 0.01 seconds
+        puppet_yaml = open(puppet_catalog).read()
+        resource_re = r'(?<=\n)    - &id[^\n]*Relationship.*?(?=\n    [^ ])'
+
+        packages = [dict(re.findall('(title|ensure):\s*"?(.*?)"?(?:\n|$)', pkg)) for pkg in
+                    re.findall(resource_re, puppet_yaml, flags=re.DOTALL) if 'type: Package' in pkg]
+
+        puppet_packages = dict([(pkg['title'], pkg.get('ensure', 'installed')) for pkg in packages])
+
+        files = [dict(re.findall('(title|(?<=ruby/sym )target|content):\s*"?(.*?)"?(?:\n|$)', pkg)) for pkg in
+                 re.findall(resource_re, puppet_yaml, flags=re.DOTALL) if 'type: File' in pkg]
+        puppet_files = [x['title'] for x in files if 'title' in x and 'content' in x]
+    else:
+        catalog = json.load(open(puppet_catalog))
+        files = []
+        for resource in catalog['data']['resources']:
+            if resource['type'] == 'File':
+                title = resource['parameters'].get('target', resource['title'])
+                if 'content' in resource['parameters']:
+                    files.append({'title': title, 'content': resource['parameters']['content']})
+                    puppet_files.append('title')
+            elif resource['type'] == 'Package':
+                puppet_packages[resource['title']] = resource['parameters'].get('ensure', 'installed')
 
     for f in files:
         if 'target' in f:
@@ -75,7 +94,6 @@ def config_hook(conduit):
             fd = open(fn, 'w')
             fd.write(content)
             fd.close()
-    puppet_files = [x['title'] for x in files if 'title' in x and 'content' in x]
     conduit.registerCommand(InstallRemoveCommand())
     parser = conduit.getOptParser()
     if parser:

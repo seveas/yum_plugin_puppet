@@ -21,7 +21,7 @@ managed with puppet, so the provider can get a grip on the catalog.
 As an example, here is how I configure it:
  * Every server gets a role-based class assigned in puppet.
  * Each of these classes include the lass `base::common` as baseline configuration. 
- * `base::common` includes the yum and yum-plugin-puppet classes
+ * `base::common` includes the `yum` and `yum_plugin_puppet` classes
  * The yum class manages yum: `package{"yum": ensure => latest}`
 
 This looks like the following:
@@ -53,7 +53,7 @@ modules/base/manifests/init.pp
     class base::common {
         ...
         include yum
-        include yum-plugin-puppet
+        include yum_plugin_puppet
         ...
     }
 

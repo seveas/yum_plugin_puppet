@@ -123,7 +123,7 @@ Puppet::Type.type(:package).provide :yum3, :parent => :yum, :source => :rpm do
             return
         end
         notice("Processing %d/%d packages in one transaction" % [preinstall.count, preinstall.count + packages.keys.count])
-        notice(preinstall.to_s)
+        notice(preinstall.collect { |x| x.to_s })
         pkgs = []
         preinstall.each do |pkg|
             ens = pkg[:ensure].to_s

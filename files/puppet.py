@@ -252,9 +252,6 @@ class InstallRemoveCommand(YumCommand):
     def needTs(self, base, basecmd, extcmds):
         return True
 
-    def needTsRemove(self, base, basecmd, extcmds):
-        return True
-
 class FakeInstallRemoveCommand(YumCommand):
     def getNames(self):
         return ['install-remove']

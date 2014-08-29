@@ -14,6 +14,60 @@ try:
 except ImportError:
     import simplejson as json
 
+
+# Function backported from CentOS 6 yum for CentOS 5 yum
+if not hasattr(yum.config.RepoConf, 'skip_if_unavailable'):
+    yum.config.RepoConf.skip_if_unavailable = yum.config.BoolOption(False)
+    import types
+    def populateSack(self, which='enabled', mdtype='metadata', callback=None, cacheonly=0):
+        """
+        This populates the package sack from the repositories, two optional
+        arguments:
+            - which='repoid, enabled, all'
+            - mdtype='metadata, filelists, otherdata, all'
+        """
+
+        if not self._setup:
+            self.doSetup()
+
+        if not callback:
+            callback = self.callback
+        myrepos = []
+        if which == 'enabled':
+            myrepos = self.listEnabled()
+        elif which == 'all':
+            myrepos = self.repos.values()
+        else:
+            if type(which) == types.ListType:
+                for repo in which:
+                    if isinstance(repo, yum.repos.Repository):
+                        myrepos.append(repo)
+                    else:
+                        repobj = self.getRepo(repo)
+                        myrepos.append(repobj)
+            elif type(which) == types.StringType:
+                repobj = self.getRepo(which)
+                myrepos.append(repobj)
+
+        if mdtype == 'all':
+            data = ['metadata', 'filelists', 'otherdata']
+        else:
+            data = [ mdtype ]
+
+        for repo in myrepos:
+            sack = repo.getPackageSack()
+            try:
+                sack.populate(repo, mdtype, callback, cacheonly)
+            except yum.Errors.RepoError, e:
+                if mdtype in ['all', 'metadata'] and repo.skip_if_unavailable:
+                    self.disableRepo(repo.id)
+                else:
+                    raise
+            else:
+                self.pkgSack.addSack(repo.id, sack)
+    yum.repos.RepoStorage.populateSack = populateSack
+
+# With RepoStorage fixed, we can import yumcommands
 from yumcommands import YumCommand, checkRootUID, checkGPGKey, checkPackageArg
 
 requires_api_version = '2.4'
